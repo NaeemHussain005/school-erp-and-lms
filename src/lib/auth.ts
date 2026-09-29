@@ -95,76 +95,50 @@ export async function getCurrentSchool() {
   return school || null;
 }
 
-export async function getSetupProgress(schoolId: number) {
-  let [progress] = await db
-    .select()
-    .from(setupProgress)
-    .where(eq(setupProgress.schoolId, schoolId))
-    .limit(1);
-  if (!progress) {
-    const [newProgress] = await db
-      .insert(setupProgress)
-      .values({ schoolId })
-      .returning();
-    progress = newProgress;
-  }
-  return progress;
-}
-
-export function fullName(user: { firstName?: string | null; lastName?: string | null; name?: string | null }) {
-  if (user.name) return user.name;
-  return [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unknown";
-}
-
-export function getRoleHome(role: string): string {
-  if (role === "super_admin") return "/admin/super";
-  if (role === "parent") return "/parent";
-  if (role === "student") return "/student";
-  if (role === "teacher") return "/teacher";
-  if (role === "accountant") return "/dashboard";
-  return "/dashboard";
-}
-
-/**
- * Ensure a default school + admin exists for simple bootstrap.
- */
 export async function ensureBootstrap() {
   const existingSchools = await db.select().from(schools).limit(1);
   if (existingSchools.length > 0) return existingSchools[0];
 
-  // Create a default school
-  const [school] = await db
-    .insert(schools)
-    .values({
-      name: "My School",
-      currency: "PKR",
-      timezone: "Asia/Karachi",
-      primaryColor: "#2563eb",
-    })
-    .returning();
+  try {
+    // Create a default school
+    const [school] = await db
+      .insert(schools)
+      .values({
+        name: "My School",
+        currency: "PKR",
+        timezone: "Asia/Karachi",
+        primaryColor: "#2563eb",
+      })
+      .returning();
 
-  // Create a main branch
-  await db.insert(branches).values({
-    schoolId: school.id,
-    name: "Main Campus",
-    isMain: true,
-  });
+    // Create a main branch
+    await db.insert(branches).values({
+      schoolId: school.id,
+      name: "Main Campus",
+      isMain: true,
+    });
 
-  // Create admin user
-  const passwordHash = await hashPassword("admin123");
-  await db.insert(users).values({
-    schoolId: school.id,
-    email: "admin@school.com",
-    username: "admin",
-    passwordHash,
-    role: "school_admin",
-    firstName: "School",
-    lastName: "Administrator",
-    isActive: true,
-  });
+    // Create admin user
+    const passwordHash = await hashPassword("admin123");
+    await db.insert(users).values({
+      schoolId: school.id,
+      email: "admin@school.com",
+      username: "admin",
+      passwordHash,
+      role: "school_admin",
+      firstName: "School",
+      lastName: "Administrator",
+      isActive: true,
+    });
 
-  // Setup progress row
-  await db.insert(setupProgress).values({ schoolId: school.id, currentStep: 1 });
+    // Setup progress row
+    await db.insert(setupProgress).values({ schoolId: school.id, currentStep: 1 });
 
-  return school;
+    return school;
+  } catch (err) {
+    // Another concurrent request already created the school/admin — just return it
+    const [school] = await db.select().from(schools).limit(1);
+    if (school) return school;
+    throw err;
+  }
 }
