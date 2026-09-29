@@ -94,7 +94,35 @@ export async function getCurrentSchool() {
     .limit(1);
   return school || null;
 }
+export async function getSetupProgress(schoolId: number) {
+  let [progress] = await db
+    .select()
+    .from(setupProgress)
+    .where(eq(setupProgress.schoolId, schoolId))
+    .limit(1);
+  if (!progress) {
+    const [newProgress] = await db
+      .insert(setupProgress)
+      .values({ schoolId })
+      .returning();
+    progress = newProgress;
+  }
+  return progress;
+}
 
+export function fullName(user: { firstName?: string | null; lastName?: string | null; name?: string | null }) {
+  if (user.name) return user.name;
+  return [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unknown";
+}
+
+export function getRoleHome(role: string): string {
+  if (role === "super_admin") return "/admin/super";
+  if (role === "parent") return "/parent";
+  if (role === "student") return "/student";
+  if (role === "teacher") return "/teacher";
+  if (role === "accountant") return "/dashboard";
+  return "/dashboard";
+}
 export async function ensureBootstrap() {
   const existingSchools = await db.select().from(schools).limit(1);
   if (existingSchools.length > 0) return existingSchools[0];
