@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import { Save, Loader2, Palette, Building2, Users, Calendar, Wallet, ClipboardList, Bell, FileText, Shield, Database } from "lucide-react";
+import { Save, Loader2, Palette, Building2, Users, Calendar, Wallet, ClipboardList, Bell, FileText, Shield, Database, Upload } from "lucide-react";
 
 const tabs = [
   { key: "general", label: "General", icon: Building2 },
@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -33,21 +34,63 @@ export default function SettingsPage() {
       .then((d) => {
         setForm(d.school || {});
         setLoading(false);
+      })
+      .catch(() => {
+        setError("Could not load settings.");
+        setLoading(false);
       });
   }, []);
+
+  function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 300;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        setForm((f: any) => ({ ...f, logoUrl: canvas.toDataURL("image/png") }));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setSaved(false);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Could not save settings");
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -60,6 +103,7 @@ export default function SettingsPage() {
             const Icon = t.icon;
             return (
               <button
+                type="button"
                 key={t.key}
                 onClick={() => setActive(t.key)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition ${
@@ -74,6 +118,7 @@ export default function SettingsPage() {
         </div>
 
         <form onSubmit={save} className="card p-6 lg:col-span-3 space-y-4">
+          {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
           {loading ? (
             <div className="text-sm text-slate-500">Loading…</div>
           ) : (
@@ -101,6 +146,31 @@ export default function SettingsPage() {
 
               {active === "branding" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="label">School Logo</label>
+                    <div className="flex items-center gap-4">
+                      {form.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={form.logoUrl} alt="Logo" className="h-24 w-24 object-contain rounded-xl border border-slate-200 bg-white p-2" />
+                      ) : (
+                        <div className="h-24 w-24 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-400">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <label className="btn-secondary cursor-pointer inline-flex">
+                          <Upload className="w-4 h-4" /> Choose Logo
+                          <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
+                        </label>
+                        {form.logoUrl && (
+                          <button type="button" onClick={() => setForm({ ...form, logoUrl: "" })} className="block text-sm text-red-600 hover:underline">
+                            Remove logo
+                          </button>
+                        )}
+                        <p className="text-xs text-slate-500">PNG with transparent background works best. Click Save Settings after choosing.</p>
+                      </div>
+                    </div>
+                  </div>
                   <Field label="Primary Color"><input type="color" className="input h-12 p-1" value={form.primaryColor || "#2563eb"} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })} /></Field>
                   <Field label="Secondary Color"><input type="color" className="input h-12 p-1" value={form.secondaryColor || "#7c3aed"} onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })} /></Field>
                   <Field label="Theme Preset">
