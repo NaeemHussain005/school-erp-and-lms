@@ -90,14 +90,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const my = ty + 58;
     doc.font("Times-Roman").fontSize(10).fillColor("#475569")
       .text("Profile No: ", 70, my, { continued: true }).font("Times-Bold").fillColor(NAVY).text(profileNo);
-    doc.font("Times-Roman").fontSize(10).fillColor("#475569")
-      .text("Date of Issue: ", W - 270, my, { width: 200, align: "right", continued: true })
-      .font("Times-Bold").fillColor(NAVY).text(fmt(new Date()));
+        doc.font("Times-Roman").fontSize(10).fillColor("#475569")
+      .text(`Date of Issue: ${fmt(new Date())}`, 70, my, { width: W - 140, align: "right" });
 
     // body
     const by = my + 22;
     doc.font("Times-Roman").fontSize(12).fillColor("#1e293b")
-      .text("This is to certify that ", 70, by, { width: W - 140, align: "justify", continued: true })
+      .text("This is to certify that ", 70, by, { width: W - 140, continued: true })
       .font("Times-Bold").text(fullName, { continued: true })
       .font("Times-Roman").text(", son/daughter of ", { continued: true })
       .font("Times-Bold").text(s.fatherName || "—", { continued: true })
