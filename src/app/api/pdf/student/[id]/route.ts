@@ -61,6 +61,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       doc.polygon([cx, cy - 12], [cx + 12, cy], [cx, cy + 12], [cx - 12, cy]).lineWidth(1.5).stroke(GOLD);
     });
 
+    // student photo (top right)
+    if (s.photoUrl && String(s.photoUrl).startsWith("data:image")) {
+      try {
+        const pbuf = Buffer.from(String(s.photoUrl).split(",")[1], "base64");
+        doc.image(pbuf, W - 150, 62, { fit: [80, 100] });
+        doc.rect(W - 150, 62, 80, 100).lineWidth(1.5).stroke(GOLD);
+      } catch {}
+    }
+
     // optional logo (only works if stored as a data: URL)
     let headerY = 52;
     const logo: string | undefined = school.logo || school.logoUrl;
@@ -86,11 +95,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     doc.fillColor(NAVY).font("Times-BoldItalic").fontSize(30)
       .text("Student Profile", 0, ty + 14, { width: W, align: "center" });
 
-    // cert no + date
+    // profile no + date
     const my = ty + 58;
     doc.font("Times-Roman").fontSize(10).fillColor("#475569")
-      .text("Profile No: ", 70, my, { continued: true }).font("Times-Bold").fillColor(NAVY).text(profileNo);
-        doc.font("Times-Roman").fontSize(10).fillColor("#475569")
+      .text("Profile No: ", 70, my, { width: 300, continued: true }).font("Times-Bold").fillColor(NAVY).text(profileNo);
+    doc.font("Times-Roman").fontSize(10).fillColor("#475569")
       .text(`Date of Issue: ${fmt(new Date())}`, 70, my, { width: W - 140, align: "right" });
 
     // body
@@ -135,14 +144,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       doc.fillColor(NAVY).font("Times-Bold").fontSize(11.5)
         .text(value, cx + 10, cy + 19, { width: cw - 20, height: 14, ellipsis: true });
     });
-    // full width address row
     const addrY = tableY + rows * ch;
     doc.fillColor("#64748b").font("Helvetica").fontSize(6.5)
       .text("ADDRESS", tx + 10, addrY + 7, { characterSpacing: 1 });
     doc.fillColor(NAVY).font("Times-Bold").fontSize(11.5)
       .text(s.address || "—", tx + 10, addrY + 19, { width: tw - 20, height: 14, ellipsis: true });
 
-    // table lines
     const totalH = rows * ch + ch;
     doc.rect(tx, tableY, tw, totalH).lineWidth(0.8).stroke(GOLD);
     for (let r = 1; r <= rows; r++) doc.moveTo(tx, tableY + r * ch).lineTo(tx + tw, tableY + r * ch).lineWidth(0.4).stroke("#d8c48a");
