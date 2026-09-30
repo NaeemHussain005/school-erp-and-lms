@@ -10,8 +10,13 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!session.schoolId) return NextResponse.json({ error: "No school" }, { status: 400 });
+
     const body = await req.json();
     const schoolId = session.schoolId;
+
+    if (!body.firstName || !body.lastName) {
+      return NextResponse.json({ error: "First name and last name are required" }, { status: 400 });
+    }
 
     const data: any = {
       schoolId,
@@ -28,7 +33,7 @@ export async function POST(req: Request) {
       address: body.address || null,
       emergencyContact: body.emergencyContact || null,
       emergencyName: body.emergencyName || null,
-      admissionDate: body.admissionDate || new Date(),
+      admissionDate: body.admissionDate || new Date().toISOString().slice(0, 10),
       previousSchool: body.previousSchool || null,
       rollNo: body.rollNo || null,
       classId: body.classId ? parseInt(body.classId) : null,
@@ -37,6 +42,7 @@ export async function POST(req: Request) {
       house: body.house || null,
       medicalInfo: body.medicalInfo || null,
       notes: body.notes || null,
+      photoUrl: body.photoUrl || null,
       isActive: true,
       admissionStatus: "admitted",
     };
