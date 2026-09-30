@@ -88,9 +88,18 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         <div className="h-32 bg-gradient-to-r from-blue-600 to-violet-600 relative" />
         <div className="p-6 -mt-16 relative">
           <div className="flex flex-col md:flex-row md:items-end gap-4">
-            <div className="w-28 h-28 rounded-2xl bg-white border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold text-blue-600 bg-gradient-to-br from-blue-100 to-violet-100 uppercase">
-              {studentFullName(s).slice(0, 2)}
-            </div>
+            {s.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.photoUrl}
+                alt={studentFullName(s)}
+                className="w-28 h-28 rounded-2xl border-4 border-white shadow-lg object-cover bg-white"
+              />
+            ) : (
+              <div className="w-28 h-28 rounded-2xl bg-white border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold text-blue-600 bg-gradient-to-br from-blue-100 to-violet-100 uppercase">
+                {studentFullName(s).slice(0, 2)}
+              </div>
+            )}
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-slate-900">{studentFullName(s)}</h2>
               <div className="text-slate-500 mt-1">
