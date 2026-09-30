@@ -235,9 +235,8 @@ export default async function StudentCertificatePage({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 44, position: "relative" }}>
               <div style={{ textAlign: "center", width: 200 }}>
                 <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>
-  {school.principal ? <div>{school.principal}</div> : null}
-  <div style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>Principal</div>
-</div>
+                  Class Teacher
+                </div>
               </div>
 
               <div
@@ -265,9 +264,9 @@ export default async function StudentCertificatePage({
 
               <div style={{ textAlign: "center", width: 200 }}>
                 <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>
-  {school.principal ? <div>{school.principal}</div> : null}
-  <div style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>Principal</div>
-</div>
+                  {school.principal ? <div>{school.principal}</div> : null}
+                  <div style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>Principal</div>
+                </div>
               </div>
             </div>
 
