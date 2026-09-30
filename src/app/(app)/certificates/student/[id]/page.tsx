@@ -36,7 +36,7 @@ export default async function StudentCertificatePage({
   const s = sRows[0];
   const school: any = schoolRows[0] || {};
   const schoolName: string = school.name || "My School";
-  const logo: string | null = school.logo || school.logoUrl || null;
+  const logo: string | null = school.logoUrl || school.logo || null;
   const contactLine = [school.phone, school.email].filter(Boolean).join("  |  ");
   const className = cRows.find((c) => c.id === s.classId)?.name || "";
   const name = studentFullName(s);
@@ -51,31 +51,32 @@ export default async function StudentCertificatePage({
   const title = titles[type] || titles.bonafide;
   const certNo = `${(titles[type] ? type : "bonafide").slice(0, 3).toUpperCase()}-${year}-${String(s.id).padStart(4, "0")}`;
 
-  const classText = className ? `class ${className}` : "this school";
   const fatherText = s.fatherName || "—";
+  const classPhrase = className ? `class ${className}` : "";
 
   let body: React.ReactNode;
   if (type === "character") {
     body = (
       <>
         This is to certify that <strong>{name}</strong>, son/daughter of <strong>{fatherText}</strong>, Admission No.{" "}
-        <strong>{s.admissionNo}</strong>, has been a student of {classText}. During this period, the conduct and
-        character of the student has been found to be <strong>good</strong>.
+        <strong>{s.admissionNo}</strong>, has been a student of this school{classPhrase ? `, in ${classPhrase}` : ""}.
+        During this period, the conduct and character of the student has been found to be <strong>good</strong>.
       </>
     );
   } else if (type === "transfer") {
     body = (
       <>
         This is to certify that <strong>{name}</strong>, son/daughter of <strong>{fatherText}</strong>, Admission No.{" "}
-        <strong>{s.admissionNo}</strong>, was admitted to this school on <strong>{formatDate(s.admissionDate)}</strong>{" "}
-        and last studied in {classText}. The student is leaving the school and all dues have been cleared.
+        <strong>{s.admissionNo}</strong>, was admitted to this school on <strong>{formatDate(s.admissionDate)}</strong>
+        {classPhrase ? ` and last studied in ${classPhrase}` : ""}. The student is leaving the school and all dues have
+        been cleared.
       </>
     );
   } else {
     body = (
       <>
         This is to certify that <strong>{name}</strong>, son/daughter of <strong>{fatherText}</strong>, is a bonafide
-        student of this school, currently studying in {classText}, bearing Admission No.{" "}
+        student of this school{classPhrase ? `, currently studying in ${classPhrase}` : ""}, bearing Admission No.{" "}
         <strong>{s.admissionNo}</strong>.
       </>
     );
@@ -154,19 +155,43 @@ export default async function StudentCertificatePage({
               />
             )}
 
-            {/* header */}
-            <div style={{ textAlign: "center", position: "relative" }}>
-              {logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt="logo" style={{ height: 86, width: "auto", margin: "0 auto 8px", objectFit: "contain" }} />
-              )}
-              <h1 style={{ fontSize: 34, fontWeight: 700, color: NAVY, letterSpacing: 2, textTransform: "uppercase", margin: 0 }}>
-                {schoolName}
-              </h1>
-              {school.address && <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>{school.address}</div>}
-              {contactLine && <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{contactLine}</div>}
-              <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`, margin: "14px auto 0", width: "70%" }} />
+            {/* header: logo | school name | student photo */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative" }}>
+              <div style={{ width: 120, display: "flex", justifyContent: "flex-start" }}>
+                {logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logo} alt="logo" style={{ height: 90, width: "auto", maxWidth: 120, objectFit: "contain" }} />
+                )}
+              </div>
+
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <h1 style={{ fontSize: 32, fontWeight: 700, color: NAVY, letterSpacing: 2, textTransform: "uppercase", margin: 0, lineHeight: 1.2 }}>
+                  {schoolName}
+                </h1>
+                {school.address && <div style={{ fontSize: 13, color: "#475569", marginTop: 6 }}>{school.address}</div>}
+                {contactLine && <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{contactLine}</div>}
+              </div>
+
+              <div style={{ width: 120, display: "flex", justifyContent: "flex-end" }}>
+                {s.photoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={s.photoUrl}
+                    alt={name}
+                    style={{
+                      width: 100,
+                      height: 124,
+                      objectFit: "cover",
+                      border: `3px solid ${GOLD}`,
+                      padding: 3,
+                      background: "#fff",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                )}
+              </div>
             </div>
+            <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`, margin: "16px auto 0", width: "80%", position: "relative" }} />
 
             {/* title */}
             <div style={{ textAlign: "center", marginTop: 22, position: "relative" }}>
@@ -192,7 +217,6 @@ export default async function StudentCertificatePage({
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 0,
                 border: `1px solid ${GOLD}`,
                 marginTop: 14,
                 position: "relative",
