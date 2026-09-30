@@ -12,6 +12,19 @@ const NAVY = "#1e3a8a";
 const GOLD = "#b8902f";
 const fmt = (d: any) => (d ? new Date(d).toLocaleDateString("en-GB") : "—");
 
+async function loadImage(src?: string | null): Promise<Buffer | null> {
+  if (!src) return null;
+  try {
+    if (src.startsWith("data:image")) return Buffer.from(src.split(",")[1], "base64");
+    if (src.startsWith("http")) {
+      const r = await fetch(src);
+      if (!r.ok) return null;
+      return Buffer.from(await r.arrayBuffer());
+    }
+  } catch {}
+  return null;
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
@@ -40,8 +53,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const sectionName = sectionRows.find((x: any) => x.id === s.sectionId)?.name || "";
     const classText = `${className} ${sectionName}`.trim() || "—";
     const fullName = [s.firstName, s.lastName].filter(Boolean).join(" ");
-    const year = new Date().getFullYear();
-    const profileNo = `STU-${year}-${String(s.id).padStart(4, "0")}`;
+    const profileNo = `STU-${new Date().getFullYear()}-${String(s.id).padStart(4, "0")}`;
+
+    const [logoBuf, photoBuf] = await Promise.all([loadImage(school.logoUrl), loadImage(s.photoUrl)]);
 
     const W = 842;
     const H = 595;
@@ -61,35 +75,29 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       doc.polygon([cx, cy - 12], [cx + 12, cy], [cx, cy + 12], [cx - 12, cy]).lineWidth(1.5).stroke(GOLD);
     });
 
-    // student photo (top right)
-    if (s.photoUrl && String(s.photoUrl).startsWith("data:image")) {
+    // header: logo (left) | school name (center) | photo (right)
+    const headerY = 60;
+    if (logoBuf) {
       try {
-        const pbuf = Buffer.from(String(s.photoUrl).split(",")[1], "base64");
-        doc.image(pbuf, W - 150, 62, { fit: [80, 100] });
-        doc.rect(W - 150, 62, 80, 100).lineWidth(1.5).stroke(GOLD);
+        doc.image(logoBuf, 80, headerY - 4, { fit: [80, 80] });
+      } catch {}
+    }
+    if (photoBuf) {
+      try {
+        doc.rect(W - 168, headerY - 6, 88, 108).fill("#ffffff");
+        doc.image(photoBuf, W - 164, headerY - 2, { fit: [80, 100] });
+        doc.rect(W - 168, headerY - 6, 88, 108).lineWidth(1.8).stroke(GOLD);
       } catch {}
     }
 
-    // optional logo (only works if stored as a data: URL)
-    let headerY = 52;
-    const logo: string | undefined = school.logo || school.logoUrl;
-    if (logo && logo.startsWith("data:image")) {
-      try {
-        const buf = Buffer.from(logo.split(",")[1], "base64");
-        doc.image(buf, W / 2 - 22, 44, { fit: [44, 44], align: "center" });
-        headerY = 92;
-      } catch {}
-    }
-
-    // header
-    doc.fillColor(NAVY).font("Times-Bold").fontSize(26)
-      .text((school.name || "SCHOOL").toUpperCase(), 0, headerY, { width: W, align: "center", characterSpacing: 2 });
-    const addr = [school.address, school.phone, school.email].filter(Boolean).join("   |   ");
-    if (addr) doc.fillColor("#64748b").font("Times-Roman").fontSize(9).text(addr, 0, headerY + 34, { width: W, align: "center" });
-    doc.moveTo(220, headerY + 52).lineTo(W - 220, headerY + 52).lineWidth(1.5).stroke(GOLD);
+    doc.fillColor(NAVY).font("Times-Bold").fontSize(24)
+      .text((school.name || "SCHOOL").toUpperCase(), 180, headerY + 8, { width: W - 360, align: "center", characterSpacing: 1.5 });
+    const addr = [school.address, school.phone, school.email].filter(Boolean).join("  |  ");
+    if (addr) doc.fillColor("#64748b").font("Times-Roman").fontSize(9).text(addr, 180, headerY + 42, { width: W - 360, align: "center" });
+    doc.moveTo(200, headerY + 66).lineTo(W - 200, headerY + 66).lineWidth(1.5).stroke(GOLD);
 
     // title
-    const ty = headerY + 62;
+    const ty = headerY + 74;
     doc.fillColor(GOLD).font("Times-Roman").fontSize(10)
       .text("CERTIFICATE OF", 0, ty, { width: W, align: "center", characterSpacing: 5 });
     doc.fillColor(NAVY).font("Times-BoldItalic").fontSize(30)
@@ -156,7 +164,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     for (let c = 1; c < cols; c++) doc.moveTo(tx + c * cw, tableY).lineTo(tx + c * cw, tableY + rows * ch).lineWidth(0.4).stroke("#d8c48a");
 
     // seal
-    const sealY = tableY + totalH + 52;
+    const sealY = tableY + totalH + 48;
     doc.circle(W / 2, sealY, 34).fill(GOLD);
     doc.circle(W / 2, sealY, 29).lineWidth(1).stroke("#ffffff");
     doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(8)
@@ -172,7 +180,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .text("Principal", W - 260, sigY + 4, { width: 180, align: "center" });
 
     doc.fillColor("#94a3b8").font("Times-Roman").fontSize(8)
-      .text(`This is a computer-generated document issued by ${school.name || "the school"}.`, 0, H - 50, { width: W, align: "center" });
+      .text(`This is a computer-generated document issued by ${school.name || "the school"}.`, 0, H - 52, { width: W, align: "center" });
 
     doc.end();
     const buffer = await done;
