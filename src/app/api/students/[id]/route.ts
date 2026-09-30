@@ -42,6 +42,7 @@ export async function PUT(
       house: body.house || null,
       medicalInfo: body.medicalInfo || null,
       notes: body.notes || null,
+      photoUrl: body.photoUrl === undefined ? undefined : body.photoUrl || null,
     };
 
     const updated = await db
