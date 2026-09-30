@@ -234,7 +234,10 @@ export default async function StudentCertificatePage({
             {/* signatures + seal */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 44, position: "relative" }}>
               <div style={{ textAlign: "center", width: 200 }}>
-                <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>Class Teacher</div>
+                <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>
+  {school.principal ? <div>{school.principal}</div> : null}
+  <div style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>Principal</div>
+</div>
               </div>
 
               <div
@@ -261,7 +264,10 @@ export default async function StudentCertificatePage({
               </div>
 
               <div style={{ textAlign: "center", width: 200 }}>
-                <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>Principal</div>
+                <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 4, fontSize: 14, color: NAVY, fontWeight: 600 }}>
+  {school.principal ? <div>{school.principal}</div> : null}
+  <div style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>Principal</div>
+</div>
               </div>
             </div>
 
