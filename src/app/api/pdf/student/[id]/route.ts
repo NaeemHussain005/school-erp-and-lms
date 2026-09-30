@@ -177,7 +177,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     doc.moveTo(W - 260, sigY).lineTo(W - 80, sigY).lineWidth(1.2).stroke(NAVY);
     doc.fillColor(NAVY).font("Times-Bold").fontSize(11)
       .text("Class Teacher", 80, sigY + 4, { width: 180, align: "center" })
-      .text("Principal", W - 260, sigY + 4, { width: 180, align: "center" });
+      .text(school.principal ? `${school.principal}\nPrincipal` : "Principal", W - 260, sigY + 4, { width: 180, align: "center" });
 
     doc.fillColor("#94a3b8").font("Times-Roman").fontSize(8)
       .text(`This is a computer-generated document issued by ${school.name || "the school"}.`, 0, H - 52, { width: W, align: "center" });
