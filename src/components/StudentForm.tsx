@@ -46,6 +46,7 @@ export default function StudentForm({
     house: student?.house || "",
     medicalInfo: student?.medicalInfo || "",
     notes: student?.notes || "",
+    photoUrl: student?.photoUrl || "",
   }));
   const [sectionList, setSectionList] = useState<any[]>([]);
 
@@ -61,6 +62,31 @@ export default function StudentForm({
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 400;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d")!;
+        const min = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+        update("photoUrl", canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -81,6 +107,11 @@ export default function StudentForm({
       setSuccess(student ? "Student updated." : "Student added successfully.");
       if (!student) {
         setTimeout(() => router.push(`/students/${data.studentId}`), 800);
+      } else {
+        setTimeout(() => {
+          router.push(`/students/${student.id}`);
+          router.refresh();
+        }, 800);
       }
     } catch (err: any) {
       setError(err.message);
@@ -93,6 +124,28 @@ export default function StudentForm({
     <form onSubmit={onSubmit} className="card p-6 space-y-6">
       {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
       {success && <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{success}</div>}
+
+      <div className="flex items-center gap-4">
+        {form.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={form.photoUrl} alt="Student" className="w-24 h-24 rounded-2xl object-cover border border-slate-200" />
+        ) : (
+          <div className="w-24 h-24 rounded-2xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-400">
+            <Upload className="w-6 h-6" />
+          </div>
+        )}
+        <div className="space-y-2">
+          <label className="btn-secondary cursor-pointer inline-flex">
+            <Upload className="w-4 h-4" /> Choose Photo
+            <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+          </label>
+          {form.photoUrl && (
+            <button type="button" onClick={() => update("photoUrl", "")} className="block text-sm text-red-600 hover:underline">
+              Remove photo
+            </button>
+          )}
+        </div>
+      </div>
 
       <Section title="Personal Information">
         <Field label="First Name *">
