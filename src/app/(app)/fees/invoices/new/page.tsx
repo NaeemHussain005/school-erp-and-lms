@@ -186,8 +186,11 @@ export default function NewInvoicePage() {
             {items.map((it, i) => (
               <div key={i} className="flex gap-2">
                 <input
-                  className="input flex-1"
+                  className="input flex-1 min-w-0"
+                  style={{ minWidth: 180 }}
                   placeholder="e.g. Tuition Fee"
+                  autoComplete="off"
+                  name={`item-title-${i}`}
                   value={it.title}
                   onChange={(e) => updateItem(i, "title", e.target.value)}
                   required
@@ -198,6 +201,8 @@ export default function NewInvoicePage() {
                   min="1"
                   className="input w-36"
                   placeholder="Amount"
+                  autoComplete="off"
+                  name={`item-amount-${i}`}
                   value={it.amount}
                   onChange={(e) => updateItem(i, "amount", e.target.value)}
                   required
