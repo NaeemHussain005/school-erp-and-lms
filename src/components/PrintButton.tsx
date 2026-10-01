@@ -2,10 +2,10 @@
 
 import { Printer } from "lucide-react";
 
-export default function PrintButton() {
+export default function InvoicePrintButton() {
   return (
-    <button onClick={() => window.print()} className="btn-primary">
-      <Printer className="w-4 h-4" /> Print / Save PDF
+    <button type="button" onClick={() => window.print()} className="btn-secondary">
+      <Printer className="w-4 h-4" /> Print
     </button>
   );
 }
