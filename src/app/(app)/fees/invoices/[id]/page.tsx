@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import InvoicePrintButton from "@/components/InvoicePrintButton";
+import RecordPaymentForm from "@/components/RecordPaymentForm";
 import { formatCurrency, formatDate, whatsappLink, studentFullName } from "@/lib/utils";
 import { Download, MessageCircle } from "lucide-react";
 
@@ -37,6 +38,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
   const message = `Dear Parent,\n\nThis is to inform you that the fee invoice for ${name}${cls?.name ? ", " + cls.name : ""}, for ${inv.month || "the current period"} has been generated.\n\nInvoice No: ${inv.invoiceNo}\nAmount: PKR ${Number(inv.totalAmount).toFixed(2)}\nDue Date: ${formatDate(inv.dueDate)}\n\nThank you,\nSchool Administration.`;
   const waLink = student?.phone ? whatsappLink(student.phone, message) : "#";
+
+  const balance = Number(inv.balanceAmount);
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto">
@@ -130,14 +133,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
             <Row label="Paid" value={formatCurrency(Number(inv.paidAmount))} />
             <div className="flex justify-between font-bold text-base">
-              <span className={Number(inv.balanceAmount) > 0 ? "text-red-600" : "text-emerald-600"}>Balance Due</span>
-              <span className={Number(inv.balanceAmount) > 0 ? "text-red-600" : "text-emerald-600"}>
-                {formatCurrency(Number(inv.balanceAmount))}
+              <span className={balance > 0 ? "text-red-600" : "text-emerald-600"}>Balance Due</span>
+              <span className={balance > 0 ? "text-red-600" : "text-emerald-600"}>
+                {formatCurrency(balance)}
               </span>
             </div>
           </div>
         </div>
       </div>
+
+      {balance > 0 && <RecordPaymentForm invoiceId={inv.id} balance={balance} />}
     </div>
   );
 }
