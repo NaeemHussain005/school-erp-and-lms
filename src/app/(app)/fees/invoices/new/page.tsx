@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { Save, Loader2, Plus, Trash2, MessageCircle } from "lucide-react";
-import { formatCurrency, monthName, whatsappLink, generateInvoiceNo } from "@/lib/utils";
+import { formatCurrency, monthName, whatsappLink } from "@/lib/utils";
 
 interface StudentOption {
   id: number;
@@ -38,8 +38,8 @@ export default function NewInvoicePage() {
     isScholarship: false,
     scholarshipPercent: 0,
   });
-  const [items, setItems] = useState<{ title: string; amount: number }[]>([
-    { title: "Tuition Fee", amount: 0 },
+  const [items, setItems] = useState<{ title: string; amount: any }[]>([
+    { title: "Tuition Fee", amount: "" },
   ]);
 
   useEffect(() => {
@@ -48,13 +48,8 @@ export default function NewInvoicePage() {
       .then((d) => {
         setStudents(d.students || []);
         setLoadingStudents(false);
-        if (presetStudent) {
-          const found = (d.students || []).find((s: StudentOption) => s.id === parseInt(presetStudent));
-          if (found && found.fatherName) {
-            // can prefill anything
-          }
-        }
-      });
+      })
+      .catch(() => setLoadingStudents(false));
   }, [presetStudent]);
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
@@ -65,19 +60,23 @@ export default function NewInvoicePage() {
   const total = Math.max(0, subtotal - totalDiscount + fineNum);
 
   function addItem() {
-    setItems([...items, { title: "", amount: 0 }]);
+    setItems([...items, { title: "", amount: "" }]);
   }
   function removeItem(i: number) {
     setItems(items.filter((_, idx) => idx !== i));
   }
   function updateItem(i: number, key: "title" | "amount", value: any) {
     const copy = [...items];
-    (copy[i] as any)[key] = key === "amount" ? parseFloat(value) || 0 : value;
+    (copy[i] as any)[key] = value;
     setItems(copy);
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (subtotal <= 0) {
+      setError("Please enter an amount greater than 0.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSuccess(null);
@@ -85,7 +84,12 @@ export default function NewInvoicePage() {
       const res = await fetch("/api/fees/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, items, subtotal, total }),
+        body: JSON.stringify({
+          ...form,
+          items: items.map((it) => ({ title: it.title, amount: Number(it.amount) || 0 })),
+          subtotal,
+          total,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create invoice");
@@ -99,9 +103,10 @@ export default function NewInvoicePage() {
 
   if (success) {
     const student = students.find((s) => s.id === success.studentId);
-    const whatsappMsg = `Dear Parent,\n\nThis is to inform you that the fee invoice for ${student?.label || "your child"}${student?.className ? ", " + student.className : ""}, for ${form.month} has been generated.\n\nInvoice No: ${success.invoiceNo}\nAmount: PKR ${total.toFixed(2)}\nDue Date: ${form.dueDate}\n\nPlease find the fee invoice here:\n${typeof window !== "undefined" ? window.location.origin : ""}/fees/invoices/${success.invoiceId}\n\nThank you,\nSchool Administration.`;
+    const finalTotal = Number(success.total ?? total);
+    const whatsappMsg = `Dear Parent,\n\nThis is to inform you that the fee invoice for ${student?.label || "your child"}${student?.className ? ", " + student.className : ""}, for ${form.month} has been generated.\n\nInvoice No: ${success.invoiceNo}\nAmount: PKR ${finalTotal.toFixed(2)}\nDue Date: ${form.dueDate}\n\nPlease find the fee invoice here:\n${typeof window !== "undefined" ? window.location.origin : ""}/fees/invoices/${success.invoiceId}\n\nThank you,\nSchool Administration.`;
     const waLink = student?.fatherName
-      ? whatsappLink(students.find(s => s.id === success.studentId)?.whatsapp || "", whatsappMsg)
+      ? whatsappLink(student?.whatsapp || "", whatsappMsg)
       : "#";
     return (
       <div className="animate-fade-in max-w-2xl mx-auto">
@@ -110,7 +115,7 @@ export default function NewInvoicePage() {
             <Save className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Invoice created successfully</h2>
-          <p className="text-slate-500 mt-1">Invoice <span className="font-mono font-semibold">{success.invoiceNo}</span> for {formatCurrency(total)}</p>
+          <p className="text-slate-500 mt-1">Invoice <span className="font-mono font-semibold">{success.invoiceNo}</span> for {formatCurrency(finalTotal)}</p>
           <div className="flex flex-wrap gap-2 justify-center mt-6">
             <button
               onClick={() => router.push(`/fees/invoices/${success.invoiceId}`)}
@@ -190,6 +195,7 @@ export default function NewInvoicePage() {
                 <input
                   type="number"
                   step="0.01"
+                  min="1"
                   className="input w-36"
                   placeholder="Amount"
                   value={it.amount}
