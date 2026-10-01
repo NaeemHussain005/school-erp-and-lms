@@ -141,7 +141,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     doc.font("Helvetica").fontSize(8.5).fillColor("#666").text(inv.notes || defaultNote, 40, ty + 20, { width: 515 });
 
     // Signatures
-    const sy = Math.max(ty + 90, 640);
+    const sy = ty + 110;
     doc.moveTo(50, sy).lineTo(210, sy).lineWidth(0.8).strokeColor("#888").stroke();
     doc.moveTo(385, sy).lineTo(545, sy).lineWidth(0.8).strokeColor("#888").stroke();
     doc.fontSize(8.5).fillColor("#555").font("Helvetica");
