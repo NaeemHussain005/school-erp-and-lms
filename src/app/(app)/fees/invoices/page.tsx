@@ -4,6 +4,7 @@ import { feeInvoices, students } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
+import DeleteInvoiceButton from "@/components/DeleteInvoiceButton";
 import { formatCurrency, formatDate, studentFullName } from "@/lib/utils";
 import { Plus, FileText, Download } from "lucide-react";
 
@@ -165,6 +166,9 @@ export default async function InvoicesPage({
                   <a href={`/api/pdf/invoice/${r.id}`} target="_blank" rel="noreferrer" className="text-slate-600 hover:underline inline-flex items-center gap-1">
                     <Download className="w-3 h-3" /> PDF
                   </a>
+                  {Number(r.paidAmount || 0) <= 0 && (
+                    <span className="ml-3"><DeleteInvoiceButton invoiceId={r.id} compact /></span>
+                  )}
                 </td>
               </tr>
             ))}
