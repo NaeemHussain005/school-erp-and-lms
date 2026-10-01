@@ -159,7 +159,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       ? "Thank you for your payment. Please keep this receipt for your records."
       : "Please pay before the due date to avoid late fine.");
     doc.font("Times-Italic").fontSize(10).fillColor("#64748b").text(note, 50, y, { width: W - 100 });
-    y += 60;
+    y += 30;
 
     // seal + signatures (right below content)
     const sealY = y + 30;
