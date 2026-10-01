@@ -76,10 +76,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         doc.image(logoBuf, 50, 46, { fit: [70, 70] });
       } catch {}
     }
-    doc.fillColor(NAVY).font("Times-Bold").fontSize(23)
-      .text((school.name || "SCHOOL").toUpperCase(), 130, 54, { width: W - 260, align: "center", characterSpacing: 1.5 });
+      doc.fillColor(NAVY).font("Times-Bold").fontSize(20)
+      .text((school.name || "SCHOOL").toUpperCase(), 125, 60, { width: W - 250, align: "center", characterSpacing: 0.5, lineBreak: false });
     const contact = [school.address, school.phone, school.email].filter(Boolean).join("   |   ");
-    if (contact) doc.fillColor("#64748b").font("Times-Roman").fontSize(9).text(contact, 130, 86, { width: W - 260, align: "center" });
+    if (contact) doc.fillColor("#64748b").font("Times-Roman").fontSize(9).text(contact, 125, 90, { width: W - 250, align: "center", lineBreak: false });
     doc.moveTo(120, 128).lineTo(W - 120, 128).lineWidth(1.3).stroke(GOLD);
 
     // title + status badge
