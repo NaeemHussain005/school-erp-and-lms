@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { feeInvoices, feeInvoiceItems, students, classes } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { feeInvoices, feeInvoiceItems, feePayments, students, classes } from "@/db/schema";
+import { and, asc, eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import InvoicePrintButton from "@/components/InvoicePrintButton";
 import RecordPaymentForm from "@/components/RecordPaymentForm";
+import DeleteInvoiceButton from "@/components/DeleteInvoiceButton";
 import { formatCurrency, formatDate, whatsappLink, studentFullName } from "@/lib/utils";
-import { Download, MessageCircle } from "lucide-react";
+import { Download, MessageCircle, Receipt } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+const METHODS: Record<string, string> = {
+  cash: "Cash", bank: "Bank", card: "Card", online: "Online", cheque: "Cheque", other: "Other",
+};
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAuth();
@@ -27,8 +32,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   if (invRows.length === 0) return notFound();
   const inv = invRows[0];
 
-  const [items, studentRows, allClasses] = await Promise.all([
+  const [items, payments, studentRows, allClasses] = await Promise.all([
     db.select().from(feeInvoiceItems).where(eq(feeInvoiceItems.invoiceId, invoiceId)),
+    db.select().from(feePayments).where(eq(feePayments.invoiceId, invoiceId)).orderBy(asc(feePayments.id)),
     inv.studentId ? db.select().from(students).where(eq(students.id, inv.studentId)).limit(1) : Promise.resolve([]),
     db.select().from(classes).where(eq(classes.schoolId, schoolId)),
   ]);
@@ -52,6 +58,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <Download className="w-4 h-4" /> PDF
         </Link>
         <InvoicePrintButton />
+        {Number(inv.paidAmount || 0) <= 0 && (
+          <DeleteInvoiceButton invoiceId={inv.id} redirectTo="/fees/invoices" />
+        )}
         {waLink !== "#" && (
           <a href={waLink} target="_blank" rel="noreferrer" className="btn-success">
             <MessageCircle className="w-4 h-4" /> Send via WhatsApp
@@ -140,6 +149,42 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card p-6 mt-6 print:hidden">
+        <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-3">
+          <Receipt className="w-4 h-4 text-blue-600" /> Payment History
+        </h3>
+        {payments.length === 0 ? (
+          <p className="text-sm text-slate-500">No payments recorded yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th className="py-2">Receipt No</th>
+                <th className="py-2">Date</th>
+                <th className="py-2">Method</th>
+                <th className="py-2 text-right">Amount</th>
+                <th className="py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p: any) => (
+                <tr key={p.id} className="border-b border-slate-100">
+                  <td className="py-2 font-mono font-semibold">{p.paymentNo}</td>
+                  <td className="py-2">{formatDate(p.paymentDate)}</td>
+                  <td className="py-2">{METHODS[p.method] || p.method}</td>
+                  <td className="py-2 text-right font-semibold text-emerald-600">{formatCurrency(Number(p.amount))}</td>
+                  <td className="py-2 text-right">
+                    <a href={`/api/pdf/receipt/${p.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                      <Download className="w-3 h-3" /> Receipt
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {balance > 0 && <RecordPaymentForm invoiceId={inv.id} balance={balance} />}
