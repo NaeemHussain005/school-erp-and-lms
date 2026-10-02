@@ -1,22 +1,25 @@
-import Link from "next/link";
 import { db } from "@/db";
 import { classes, sections, students, attendanceSessions, attendanceRecords } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
-import { Calendar, CheckCircle2, XCircle, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { Calendar, Users } from "lucide-react";
 import AttendanceMarker from "@/components/AttendanceMarker";
 
 export const dynamic = "force-dynamic";
 
-export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ class?: string; section?: string; date?: string }> }) {
+export default async function AttendancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ class?: string; section?: string; date?: string }>;
+}) {
   const session = await requireAuth();
   const schoolId = session.schoolId!;
   const sp = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
-  const date = sp.date || today;
-  const classId = sp.class ? parseInt(sp.class) : null;
-  const sectionId = sp.section ? parseInt(sp.section) : null;
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+  const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
+  const classId = sp.class && !isNaN(parseInt(sp.class)) ? parseInt(sp.class) : null;
 
   const classList = await db
     .select({ id: classes.id, name: classes.name })
@@ -24,7 +27,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     .where(eq(classes.schoolId, schoolId))
     .orderBy(classes.name);
 
-  let sectionList: any[] = [];
+  let sectionList: { id: number; name: string }[] = [];
   if (classId) {
     sectionList = await db
       .select({ id: sections.id, name: sections.name })
@@ -33,10 +36,15 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       .orderBy(sections.name);
   }
 
+  // section: user ne chuna ho, ya class mein sirf ek section ho
+  const chosenSection = sp.section && !isNaN(parseInt(sp.section)) ? parseInt(sp.section) : null;
+  const sectionId = chosenSection ?? (classId && sectionList.length === 1 ? sectionList[0].id : null);
+
   let studentList: any[] = [];
   let existingSession: any = null;
   let existingRecords: any[] = [];
-  if (classId && sectionId && date) {
+
+  if (classId && sectionId) {
     const sess = await db
       .select()
       .from(attendanceSessions)
@@ -68,7 +76,10 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           eq(students.isActive, true)
         )
       )
-      .orderBy(sql`${students.rollNo}::int ASC NULLS LAST, ${students.firstName} ASC`);
+      .orderBy(
+        sql`CASE WHEN ${students.rollNo} ~ '^[0-9]+$' THEN ${students.rollNo}::int END ASC NULLS LAST`,
+        students.firstName
+      );
 
     if (existingSession) {
       existingRecords = await db
@@ -80,7 +91,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
 
   return (
     <div className="animate-fade-in">
-      <PageHeader title="Attendance" description="Mark, view and analyze daily attendance." action="Attendance Report" actionHref="/reports/attendance" actionIcon={<Calendar className="w-4 h-4" />} />
+      <PageHeader title="Attendance" description="Mark, view and analyze daily attendance." />
 
       <div className="card p-4 mb-4">
         <form action="/attendance" method="get" className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -95,8 +106,8 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           </div>
           <div>
             <label className="label">Section</label>
-            <select name="section" defaultValue={sectionId || ""} className="input" required disabled={!classId}>
-              <option value="">Select section</option>
+            <select name="section" defaultValue={sectionId || ""} className="input">
+              <option value="">{classId ? "Select section" : "Pehle class chunein"}</option>
               {sectionList.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -108,14 +119,20 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           </div>
           <div className="flex items-end">
             <button className="btn-primary w-full">
-              <CalendarIcon className="w-4 h-4" /> Load
+              <Calendar className="w-4 h-4" /> Load
             </button>
           </div>
         </form>
+        {classId && !sectionId && (
+          <p className="text-sm text-amber-600 mt-3">
+            Ab section chunein aur dobara <b>Load</b> dabayein.
+          </p>
+        )}
       </div>
 
-      {classId && sectionId && (
+      {classId && sectionId && studentList.length > 0 && (
         <AttendanceMarker
+          key={`${classId}-${sectionId}-${date}`}
           date={date}
           classId={classId}
           sectionId={sectionId}
@@ -124,6 +141,18 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           existingRecords={existingRecords}
           schoolId={schoolId}
         />
+      )}
+
+      {classId && sectionId && studentList.length === 0 && (
+        <div className="card p-10 text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-50 mx-auto flex items-center justify-center text-amber-600 mb-3">
+            <Users className="w-7 h-7" />
+          </div>
+          <h3 className="font-bold text-slate-900">Is class/section mein koi student nahi</h3>
+          <p className="text-sm text-slate-500 mt-1">
+            Student ko Edit karke Class aur Section chunein, phir yahan wapas aayein.
+          </p>
+        </div>
       )}
 
       {!classId && (
