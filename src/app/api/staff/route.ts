@@ -4,13 +4,28 @@ import { users, teacherProfiles, staffProfiles } from "@/db/schema";
 import { getSession, hashPassword } from "@/lib/auth";
 import { generateEmployeeId } from "@/lib/auth-extra";
 
+const MANAGER_ROLES = ["super_admin", "school_admin", "principal", "vice_principal", "hr_manager"];
+const BLOCKED_NEW_ROLES = ["super_admin", "parent", "student"];
+
 export async function POST(req: Request) {
   try {
-    const session = await getSession();
+    const session: any = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const body = await req.json();
     const schoolId = session.schoolId;
     if (!schoolId) return NextResponse.json({ error: "No school" }, { status: 400 });
+
+    if (!session.isSuperAdmin && !MANAGER_ROLES.includes(session.role)) {
+      return NextResponse.json({ error: "You do not have permission to add staff" }, { status: 403 });
+    }
+
+    const body = await req.json();
+
+    if (!body.role || BLOCKED_NEW_ROLES.includes(body.role)) {
+      return NextResponse.json({ error: "Invalid role for staff" }, { status: 400 });
+    }
+    if (!String(body.firstName || "").trim()) {
+      return NextResponse.json({ error: "First name is required" }, { status: 400 });
+    }
 
     const passwordHash = await hashPassword(body.password || "changeme123");
 
@@ -47,6 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, userId });
   } catch (err: any) {
     console.error(err);
-    return NextResponse.json({ error: err.message || "Failed to create staff" }, { status: 500 });
+    const msg = /unique|duplicate/i.test(err?.message || "") ? "This email or username is already used" : err.message;
+    return NextResponse.json({ error: msg || "Failed to create staff" }, { status: 500 });
   }
 }
