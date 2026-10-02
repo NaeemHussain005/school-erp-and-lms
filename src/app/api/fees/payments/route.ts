@@ -24,6 +24,10 @@ export async function POST(req: Request) {
     if (rows.length === 0) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     const inv = rows[0];
 
+    if (inv.status === "cancelled") {
+      return NextResponse.json({ error: "Cannot record a payment on a cancelled invoice" }, { status: 400 });
+    }
+
     const total = Number(inv.totalAmount || 0);
     const paid = Number(inv.paidAmount || 0);
     const balance = total - paid;
