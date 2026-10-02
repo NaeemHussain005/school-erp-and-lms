@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { students, classes, sections, parents, studentParents, feeInvoices, attendanceRecords, results } from "@/db/schema";
+import {
+  students,
+  classes,
+  sections,
+  parents,
+  studentParents,
+  feeInvoices,
+  attendanceRecords,
+  attendanceSessions,
+  results,
+} from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import { formatDate, formatCurrency, studentFullName } from "@/lib/utils";
@@ -19,6 +29,7 @@ import {
   MapPin,
   Edit,
   FileBadge,
+  CalendarCheck,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +38,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const session = await requireAuth();
   const { id } = await params;
   const studentId = parseInt(id);
+  if (isNaN(studentId)) return notFound();
   const schoolId = session.schoolId!;
 
   const [sRows, cRows, secRows] = await Promise.all([
@@ -39,7 +51,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const className = cRows.find((c) => c.id === s.classId)?.name || "—";
   const sectionName = secRows.find((sec) => sec.id === s.sectionId)?.name || "";
 
-  const [spRows, pRows, invoices, recentResults] = await Promise.all([
+  const [spRows, pRows, invoices, recentResults, attRows] = await Promise.all([
     db.select().from(studentParents).where(eq(studentParents.studentId, studentId)),
     db.select().from(parents).where(eq(parents.schoolId, schoolId)),
     db
@@ -54,6 +66,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       .where(and(eq(results.studentId, studentId), eq(results.schoolId, schoolId)))
       .orderBy(desc(results.createdAt))
       .limit(5),
+    db
+      .select({ status: attendanceRecords.status })
+      .from(attendanceRecords)
+      .innerJoin(attendanceSessions, eq(attendanceRecords.sessionId, attendanceSessions.id))
+      .where(and(eq(attendanceRecords.studentId, studentId), eq(attendanceSessions.schoolId, schoolId))),
   ]);
 
   const studentParentsList = spRows
@@ -61,6 +78,18 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     .filter(Boolean) as any[];
 
   const totalFees = invoices.reduce((sum, inv) => sum + Number(inv.balanceAmount || 0), 0);
+
+  // Attendance summary (holidays are not counted)
+  const att = { present: 0, absent: 0, late: 0, leave: 0 };
+  for (const r of attRows) {
+    if (r.status === "present") att.present++;
+    else if (r.status === "absent") att.absent++;
+    else if (r.status === "late") att.late++;
+    else if (r.status === "leave") att.leave++;
+  }
+  const attTotal = att.present + att.absent + att.late + att.leave;
+  const attPercent = attTotal > 0 ? ((att.present + att.late) / attTotal) * 100 : null;
+  const attTone = attPercent === null ? "blue" : attPercent >= 90 ? "green" : attPercent >= 75 ? "amber" : "red";
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -175,6 +204,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                           ? "text-emerald-600 font-medium"
                           : inv.status === "overdue"
                           ? "text-red-600 font-medium"
+                          : inv.status === "cancelled"
+                          ? "text-slate-500 font-medium"
                           : "text-amber-600 font-medium"
                       }
                     >
@@ -223,6 +254,24 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
+      </div>
+
+      {/* Attendance */}
+      <div className="card p-5">
+        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <CalendarCheck className="w-4 h-4 text-blue-600" /> Attendance
+        </h3>
+        {attTotal === 0 ? (
+          <p className="text-sm text-slate-500">No attendance recorded yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <StatBox label="Attendance %" value={`${attPercent!.toFixed(1)}%`} tone={attTone} />
+            <StatBox label="Present" value={String(att.present)} tone="green" />
+            <StatBox label="Absent" value={String(att.absent)} tone="red" />
+            <StatBox label="Late" value={String(att.late)} tone="amber" />
+            <StatBox label="Leave" value={String(att.leave)} tone="blue" />
+          </div>
+        )}
       </div>
     </div>
   );
