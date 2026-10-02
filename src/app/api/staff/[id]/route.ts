@@ -138,6 +138,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Delete staff error:", err);
-    return NextResponse.json({ error: err.message || "Could not delete staff" }, { status: 500 });
+    return NextResponse.json({ error: "Could not delete staff" }, { status: 500 });
   }
 }
