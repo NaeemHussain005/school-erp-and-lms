@@ -32,3 +32,40 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: err.message || "Could not delete invoice" }, { status: 500 });
   }
 }
+
+export async function PATCH(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session: any = await getSession();
+    if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await params;
+    const invoiceId = parseInt(id);
+    if (isNaN(invoiceId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
+    const rows = await db
+      .select()
+      .from(feeInvoices)
+      .where(and(eq(feeInvoices.id, invoiceId), eq(feeInvoices.schoolId, session.schoolId)))
+      .limit(1);
+    if (rows.length === 0) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+
+    if (rows[0].status === "cancelled") {
+      return NextResponse.json({ error: "Invoice is already cancelled" }, { status: 400 });
+    }
+
+    // payments stay as a record; only the invoice status and balance change
+    await db
+      .update(feeInvoices)
+      .set({
+        status: "cancelled",
+        balanceAmount: (0).toFixed(2),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(feeInvoices.id, invoiceId), eq(feeInvoices.schoolId, session.schoolId)));
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("Cancel invoice error:", err);
+    return NextResponse.json({ error: err.message || "Could not cancel invoice" }, { status: 500 });
+  }
+}
