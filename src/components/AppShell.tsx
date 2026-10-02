@@ -57,6 +57,7 @@ interface SchoolInfo {
 
 const simpleNav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Classes & Sections", href: "/academics/classes", icon: GraduationCap },
   { name: "Students", href: "/students", icon: Users },
   { name: "Teachers & Staff", href: "/staff", icon: UserCheck },
   { name: "Attendance", href: "/attendance", icon: Calendar },
