@@ -93,9 +93,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error("Update staff error:", err);
-    const msg = /unique|duplicate/i.test(err?.message || "") ? "This email is already used by another user" : err.message;
-    return NextResponse.json({ error: msg || "Could not update staff" }, { status: 500 });
+        console.error("Update staff error:", err);
+    const code = err?.code || err?.cause?.code;
+    if (code === "23505") {
+      return NextResponse.json({ error: "This email or username is already used by another user" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Could not update staff" }, { status: 500 });
   }
 }
 
