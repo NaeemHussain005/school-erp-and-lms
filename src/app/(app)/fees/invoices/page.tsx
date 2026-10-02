@@ -10,7 +10,7 @@ import { Plus, FileText, Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES = ["all", "unpaid", "partial", "paid", "overdue"];
+const STATUSES = ["all", "unpaid", "partial", "paid", "overdue", "cancelled"];
 
 export default async function InvoicesPage({
   searchParams,
@@ -55,9 +55,11 @@ export default async function InvoicesPage({
     return hay.includes(needle);
   });
 
-  const totalBilled = list.reduce((s, r) => s + Number(r.totalAmount || 0), 0);
+  // cancelled invoices are not billed / not due; payments already received still count as collected
+  const activeList = list.filter((r) => r.status !== "cancelled");
+  const totalBilled = activeList.reduce((s, r) => s + Number(r.totalAmount || 0), 0);
   const totalPaid = list.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
-  const totalDue = list.reduce((s, r) => s + Number(r.balanceAmount || 0), 0);
+  const totalDue = activeList.reduce((s, r) => s + Number(r.balanceAmount || 0), 0);
 
   const badge = (st: string | null) =>
     st === "paid"
@@ -66,6 +68,8 @@ export default async function InvoicesPage({
       ? "bg-red-100 text-red-700"
       : st === "partial"
       ? "bg-amber-100 text-amber-700"
+      : st === "cancelled"
+      ? "bg-slate-200 text-slate-600"
       : "bg-blue-100 text-blue-700";
 
   const tabHref = (s: string) => {
@@ -141,7 +145,10 @@ export default async function InvoicesPage({
               </tr>
             )}
             {list.map((r) => (
-              <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
+              <tr
+                key={r.id}
+                className={`border-b border-slate-100 hover:bg-slate-50 ${r.status === "cancelled" ? "opacity-60" : ""}`}
+              >
                 <td className="p-3 font-mono font-semibold">
                   <Link href={`/fees/invoices/${r.id}`} className="text-blue-600 hover:underline">{r.invoiceNo}</Link>
                 </td>
