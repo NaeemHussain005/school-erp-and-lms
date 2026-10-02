@@ -61,8 +61,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, userId });
   } catch (err: any) {
-    console.error(err);
-    const msg = /unique|duplicate/i.test(err?.message || "") ? "This email or username is already used" : err.message;
-    return NextResponse.json({ error: msg || "Failed to create staff" }, { status: 500 });
+    console.error("Create staff error:", err);
+    const code = err?.code || err?.cause?.code;
+    if (code === "23505") {
+      return NextResponse.json({ error: "This email or username is already used by another user" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Could not create staff. Please check the details and try again." }, { status: 500 });
   }
 }
