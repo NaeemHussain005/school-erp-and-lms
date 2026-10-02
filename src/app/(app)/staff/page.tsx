@@ -91,7 +91,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
         {staffList.map((s) => {
           const name = [s.firstName, s.lastName].filter(Boolean).join(" ");
           return (
-            <div key={s.id} className="card p-5">
+            <Link key={s.id} href={`/staff/${s.id}`} className="card p-5 block hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 text-white flex items-center justify-center font-bold uppercase flex-shrink-0">
                   {name.slice(0, 2)}
@@ -124,7 +124,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
                   <div className="text-xs text-slate-500 mt-2">Joined: {formatDate(s.joiningDate)}</div>
                 )}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
