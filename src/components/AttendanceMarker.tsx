@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, Clock, Plane, Save, Loader2, CheckSquare } from "lucide-react";
-import { studentFullName } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { studentFullName, cn } from "@/lib/utils";
 
 type Status = "present" | "absent" | "late" | "leave";
 
@@ -22,7 +21,6 @@ export default function AttendanceMarker({
   students,
   existingSession,
   existingRecords,
-  schoolId,
 }: {
   date: string;
   classId: number;
@@ -30,9 +28,10 @@ export default function AttendanceMarker({
   students: any[];
   existingSession: any;
   existingRecords: any[];
-  schoolId: number;
+  schoolId?: number;
 }) {
   const router = useRouter();
+  const [sessionId, setSessionId] = useState<number | null>(existingSession?.id || null);
   const [statuses, setStatuses] = useState<Record<number, Status>>(() => {
     const init: Record<number, Status> = {};
     for (const s of students) init[s.id] = "present";
@@ -43,6 +42,12 @@ export default function AttendanceMarker({
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   const counts = useMemo(() => {
     const c = { present: 0, absent: 0, late: 0, leave: 0 };
@@ -57,10 +62,12 @@ export default function AttendanceMarker({
     const next: Record<number, Status> = {};
     for (const s of students) next[s.id] = status;
     setStatuses(next);
+    setSaved(false);
   }
 
   function setOne(id: number, status: Status) {
     setStatuses((prev) => ({ ...prev, [id]: status }));
+    setSaved(false);
   }
 
   async function save() {
@@ -74,14 +81,13 @@ export default function AttendanceMarker({
           date,
           classId,
           sectionId,
-          existingSessionId: existingSession?.id || null,
+          existingSessionId: sessionId,
           records: students.map((s) => ({ studentId: s.id, status: statuses[s.id] || "present" })),
         }),
       });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || "Failed");
-      }
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Failed");
+      if (d.sessionId) setSessionId(d.sessionId);
       setSaved(true);
       router.refresh();
     } catch (err: any) {
@@ -91,24 +97,16 @@ export default function AttendanceMarker({
     }
   }
 
-  if (students.length === 0) {
-    return (
-      <div className="card p-10 text-center">
-        <p className="text-slate-500">No active students found in this class and section.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="card p-4">
         <div className="flex flex-wrap items-center gap-3 justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-slate-700">Bulk mark:</span>
-            <button onClick={() => markAll("present")} className="btn-secondary text-sm py-1.5">
+            <button type="button" onClick={() => markAll("present")} className="btn-secondary text-sm py-1.5">
               <CheckSquare className="w-4 h-4" /> All Present
             </button>
-            <button onClick={() => markAll("absent")} className="btn-secondary text-sm py-1.5">
+            <button type="button" onClick={() => markAll("absent")} className="btn-secondary text-sm py-1.5">
               All Absent
             </button>
           </div>
@@ -182,14 +180,12 @@ export default function AttendanceMarker({
           <div className="text-sm text-slate-600">
             Date: <span className="font-semibold">{date}</span> · {students.length} students
           </div>
-          <button onClick={save} disabled={saving} className="btn-primary px-6">
+          <button type="button" onClick={save} disabled={saving} className="btn-primary px-6">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {existingSession ? "Update Attendance" : "Save Attendance"}
+            {sessionId ? "Update Attendance" : "Save Attendance"}
           </button>
         </div>
-        {saved && (
-          <div className="px-4 pb-4 text-sm text-emerald-700">✓ Attendance saved successfully.</div>
-        )}
+        {saved && <div className="px-4 pb-4 text-sm text-emerald-700">✓ Attendance saved successfully.</div>}
       </div>
     </div>
   );
