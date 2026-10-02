@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import InvoicePrintButton from "@/components/InvoicePrintButton";
 import RecordPaymentForm from "@/components/RecordPaymentForm";
 import DeleteInvoiceButton from "@/components/DeleteInvoiceButton";
+import CancelInvoiceButton from "@/components/CancelInvoiceButton";
 import { formatCurrency, formatDate, whatsappLink, studentFullName } from "@/lib/utils";
 import { Download, MessageCircle, Receipt } from "lucide-react";
 
@@ -46,6 +47,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const waLink = student?.phone ? whatsappLink(student.phone, message) : "#";
 
   const balance = Number(inv.balanceAmount);
+  const isCancelled = inv.status === "cancelled";
+  const hasPayments = Number(inv.paidAmount || 0) > 0;
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto">
@@ -58,15 +61,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <Download className="w-4 h-4" /> PDF
         </Link>
         <InvoicePrintButton />
-        {Number(inv.paidAmount || 0) <= 0 && (
+        {!hasPayments && (
           <DeleteInvoiceButton invoiceId={inv.id} redirectTo="/fees/invoices" />
         )}
-        {waLink !== "#" && (
+        {hasPayments && !isCancelled && (
+          <CancelInvoiceButton invoiceId={inv.id} />
+        )}
+        {waLink !== "#" && !isCancelled && (
           <a href={waLink} target="_blank" rel="noreferrer" className="btn-success">
             <MessageCircle className="w-4 h-4" /> Send via WhatsApp
           </a>
         )}
       </PageHeader>
+
+      {isCancelled && (
+        <div className="mb-4 rounded-lg border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-700 print:hidden">
+          This invoice has been cancelled. Payment history is kept for the record.
+        </div>
+      )}
 
       <div className="card p-8 print-area">
         <div className="flex justify-between items-start pb-6 border-b border-slate-200">
@@ -85,6 +97,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                   ? "bg-red-100 text-red-700"
                   : inv.status === "partial"
                   ? "bg-amber-100 text-amber-700"
+                  : inv.status === "cancelled"
+                  ? "bg-slate-200 text-slate-600"
                   : "bg-blue-100 text-blue-700"
               }`}
             >
@@ -187,7 +201,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         )}
       </div>
 
-      {balance > 0 && <RecordPaymentForm invoiceId={inv.id} balance={balance} />}
+      {balance > 0 && !isCancelled && <RecordPaymentForm invoiceId={inv.id} balance={balance} />}
     </div>
   );
 }
