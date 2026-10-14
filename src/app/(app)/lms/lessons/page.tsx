@@ -1,8 +1,8 @@
-import PlaceholderPage from "@/components/PlaceholderPage";
-import { BookOpen } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default function Page() {
-  return <PlaceholderPage title={"Lessons"} description={"Create and organize lessons within LMS courses."} icon={BookOpen} />;
+export default function LessonsPage() {
+  // Lessons live inside each course
+  redirect("/lms");
 }
