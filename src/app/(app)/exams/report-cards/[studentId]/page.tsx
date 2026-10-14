@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import PrintReportButton from "@/components/PrintReportButton";
 import { canEnterMarks, gradeFor } from "@/lib/exams";
 import { formatDate, studentFullName } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,8 @@ export default async function ReportCardPage({
   const failed = sitting.filter((r) => r.grade === "F").length;
   const name = studentFullName(s);
 
+  const pdfHref = `/api/pdf/report-card/${s.id}${type ? "?type=" + encodeURIComponent(type) : ""}`;
+
   return (
     <div className="animate-fade-in max-w-4xl mx-auto">
       <PageHeader
@@ -95,6 +98,9 @@ export default async function ReportCardPage({
         description={type ? TYPE_LABELS[type] || type : "All published exams"}
         backHref={`/exams/report-cards${s.classId ? "?classId=" + s.classId : ""}`}
       >
+        <a href={pdfHref} target="_blank" rel="noreferrer" className="btn-secondary">
+          <Download className="w-4 h-4" /> PDF
+        </a>
         <PrintReportButton />
       </PageHeader>
 
