@@ -132,3 +132,34 @@ export async function cleanAssignment(
     },
   };
 }
+// ============ GRADING ============
+export const SUBMISSION_STATUSES = ["pending", "submitted", "graded", "late", "resubmit"];
+
+export function cleanGrade(
+  body: any,
+  totalMarks: number
+): { error: string } | { data: { marks: number | null; feedback: string | null; status: string } } {
+  const status = String(body?.status || "").trim();
+  if (!SUBMISSION_STATUSES.includes(status)) {
+    return { error: "Please choose a valid status" };
+  }
+
+  const feedback = String(body?.feedback || "").trim().slice(0, 3000) || null;
+
+  let marks: number | null = null;
+  const raw = body?.marks;
+  if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+    const n = Number(raw);
+    if (isNaN(n)) return { error: "Marks must be a number" };
+    if (n < 0) return { error: "Marks cannot be negative" };
+    if (n > totalMarks) return { error: `Marks cannot be more than ${totalMarks}` };
+    marks = n;
+  }
+
+  // If marked as graded, marks are required
+  if (status === "graded" && marks === null) {
+    return { error: "Enter marks before marking as graded" };
+  }
+
+  return { data: { marks, feedback, status } };
+}
