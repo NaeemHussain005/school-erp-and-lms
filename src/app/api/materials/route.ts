@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { learningMaterials, academicSessions } from "@/db/schema";
+import { learningMaterials } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { canManageLms, cleanMaterial } from "@/lib/lms";
 
