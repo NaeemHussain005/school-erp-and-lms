@@ -9,6 +9,7 @@ export default function PageHeader({
   description,
   action,
   actionHref,
+  actionOnClick,
   backHref,
   actionIcon = <Plus className="w-4 h-4" />,
   children,
@@ -17,6 +18,7 @@ export default function PageHeader({
   description?: string;
   action?: string;
   actionHref?: string;
+  actionOnClick?: () => void;
   backHref?: string;
   actionIcon?: ReactNode;
   children?: ReactNode;
@@ -40,6 +42,12 @@ export default function PageHeader({
               {actionIcon}
               {action}
             </Link>
+          )}
+          {action && !actionHref && actionOnClick && (
+            <button type="button" onClick={actionOnClick} className="btn-primary">
+              {actionIcon}
+              {action}
+            </button>
           )}
         </div>
       </div>
