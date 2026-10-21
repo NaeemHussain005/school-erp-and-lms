@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { classes, sections, subjects } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { classes, sections, subjects, students, assignmentSubmissions } from "@/db/schema";
+import { and, asc, eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import AssignmentForm from "@/components/AssignmentForm";
 import AssignmentActions from "@/components/AssignmentActions";
+import AssignmentGradebook from "@/components/AssignmentGradebook";
 import { canManageAssignments, findAssignment } from "@/lib/assignments";
-import { formatDateTime, toISODateInput } from "@/lib/utils";
+import { formatDateTime, studentFullName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +58,64 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
   const now = Date.now();
   const due = a.dueDate ? new Date(a.dueDate) : null;
   const overdue = due ? due.getTime() < now : false;
-
   const meta = [`${className} ${sectionName}`.trim(), subjectName].filter(Boolean).join(" · ");
 
+  // ---- Gradebook data (students of this class/section) ----
+  let gradeRows: {
+    studentId: number;
+    name: string;
+    rollNo: string;
+    marks: string;
+    feedback: string;
+    status: string;
+  }[] = [];
+
+  if (manage && a.classId) {
+    const studentRows = await db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        rollNo: students.rollNo,
+      })
+      .from(students)
+      .where(
+        and(
+          eq(students.schoolId, schoolId),
+          eq(students.classId, a.classId),
+          a.sectionId ? eq(students.sectionId, a.sectionId) : undefined,
+          eq(students.isActive, true)
+        )
+      )
+      .orderBy(asc(students.rollNo), asc(students.firstName));
+
+    const subRows = await db
+      .select({
+        studentId: assignmentSubmissions.studentId,
+        marks: assignmentSubmissions.marks,
+        feedback: assignmentSubmissions.feedback,
+        status: assignmentSubmissions.status,
+      })
+      .from(assignmentSubmissions)
+      .where(eq(assignmentSubmissions.assignmentId, assignmentId));
+
+    const subMap = new Map(subRows.map((s) => [s.studentId, s]));
+
+    gradeRows = studentRows.map((s) => {
+      const sub = subMap.get(s.id);
+      return {
+        studentId: s.id,
+        name: studentFullName(s),
+        rollNo: s.rollNo || "",
+        marks: sub?.marks != null ? String(sub.marks) : "",
+        feedback: sub?.feedback || "",
+        status: sub?.status || "pending",
+      };
+    });
+  }
+
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto space-y-6">
+    <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
       <PageHeader title={a.title} description={meta || "Assignment"} backHref="/assignments">
         {manage && <AssignmentActions assignmentId={a.id} />}
       </PageHeader>
@@ -87,6 +141,24 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
         <div>
           <h3 className="font-semibold text-slate-900 mb-1">Instructions</h3>
           <p className="text-slate-700 whitespace-pre-line">{a.instructions}</p>
+        </div>
+      )}
+
+      {manage && (
+        <div>
+          <h3 className="font-semibold text-slate-900 mb-3">Submissions &amp; Grading</h3>
+          {a.classId ? (
+            <AssignmentGradebook
+              assignmentId={a.id}
+              totalMarks={a.totalMarks ?? 100}
+              rows={gradeRows}
+            />
+          ) : (
+            <div className="card p-6 text-sm text-slate-500">
+              This assignment is not linked to a class, so there is no student list to grade. Edit the
+              assignment and choose a class to enable grading.
+            </div>
+          )}
         </div>
       )}
 
