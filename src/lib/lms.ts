@@ -128,3 +128,93 @@ export async function cleanCourse(
 
   return { data: { title, description, classId, sectionId, subjectId, startDate, endDate } };
 }
+// ============ MATERIALS LIBRARY ============
+export const MATERIAL_TYPES = [
+  "pdf",
+  "video",
+  "document",
+  "link",
+  "worksheet",
+  "past_paper",
+  "book",
+] as const;
+
+export async function cleanMaterial(
+  body: any,
+  schoolId: number
+): Promise<
+  | { error: string }
+  | {
+      data: {
+        title: string;
+        description: string | null;
+        type: string;
+        subjectId: number | null;
+        classId: number | null;
+        fileUrl: string | null;
+        externalUrl: string | null;
+        isPublic: boolean;
+      };
+    }
+> {
+  const title = String(body?.title || "").trim();
+  if (!title) return { error: "Material title is required" };
+  if (title.length > 255) return { error: "Title is too long" };
+
+  const type = String(body?.type || "").trim();
+  if (!MATERIAL_TYPES.includes(type as any)) {
+    return { error: "Please choose a valid material type" };
+  }
+
+  const description = String(body?.description || "").trim().slice(0, 2000) || null;
+
+  const fileUrl = cleanUrl(body?.fileUrl);
+  if (fileUrl === "invalid") return { error: "File link must start with http:// or https://" };
+  const externalUrl = cleanUrl(body?.externalUrl);
+  if (externalUrl === "invalid") return { error: "External link must start with http:// or https://" };
+
+  // At least one link so students have something to open
+  if (!fileUrl && !externalUrl) {
+    return { error: "Add at least a file link or an external link" };
+  }
+
+  let classId: number | null = null;
+  let subjectId: number | null = null;
+
+  if (body?.classId) {
+    const id = parseInt(body.classId);
+    if (isNaN(id)) return { error: "Invalid class" };
+    const rows = await db
+      .select({ id: classes.id })
+      .from(classes)
+      .where(and(eq(classes.id, id), eq(classes.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Class not found" };
+    classId = id;
+  }
+
+  if (body?.subjectId) {
+    const id = parseInt(body.subjectId);
+    if (isNaN(id)) return { error: "Invalid subject" };
+    const rows = await db
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(and(eq(subjects.id, id), eq(subjects.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Subject not found" };
+    subjectId = id;
+  }
+
+  return {
+    data: {
+      title,
+      description,
+      type,
+      subjectId,
+      classId,
+      fileUrl,
+      externalUrl,
+      isPublic: body?.isPublic === true || body?.isPublic === "true",
+    },
+  };
+}
