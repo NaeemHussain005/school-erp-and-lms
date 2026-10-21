@@ -218,3 +218,115 @@ export async function cleanMaterial(
     },
   };
 }
+// ============ LIVE CLASSES ============
+export async function cleanLiveClass(
+  body: any,
+  schoolId: number
+): Promise<
+  | { error: string }
+  | {
+      data: {
+        title: string;
+        classId: number | null;
+        sectionId: number | null;
+        subjectId: number | null;
+        teacherId: number | null;
+        meetingUrl: string | null;
+        provider: string;
+        scheduledAt: Date | null;
+        durationMinutes: number;
+        description: string | null;
+      };
+    }
+> {
+  const title = String(body?.title || "").trim();
+  if (!title) return { error: "Class title is required" };
+  if (title.length > 255) return { error: "Title is too long" };
+
+  const description = String(body?.description || "").trim().slice(0, 2000) || null;
+  const provider = String(body?.provider || "external").trim().slice(0, 50) || "external";
+
+  const meetingUrl = cleanUrl(body?.meetingUrl);
+  if (meetingUrl === "invalid") return { error: "Meeting link must start with http:// or https://" };
+
+  // scheduled date-time (from a datetime-local input)
+  let scheduledAt: Date | null = null;
+  if (body?.scheduledAt) {
+    const d = new Date(String(body.scheduledAt));
+    if (isNaN(d.getTime())) return { error: "Invalid date/time" };
+    scheduledAt = d;
+  }
+
+  let duration = parseInt(body?.durationMinutes);
+  if (isNaN(duration) || duration <= 0) duration = 45;
+  if (duration > 600) duration = 600;
+
+  let classId: number | null = null;
+  let sectionId: number | null = null;
+  let subjectId: number | null = null;
+  let teacherId: number | null = null;
+
+  if (body?.classId) {
+    const id = parseInt(body.classId);
+    if (isNaN(id)) return { error: "Invalid class" };
+    const rows = await db
+      .select({ id: classes.id })
+      .from(classes)
+      .where(and(eq(classes.id, id), eq(classes.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Class not found" };
+    classId = id;
+  }
+
+  if (body?.sectionId) {
+    if (!classId) return { error: "Select a class before choosing a section" };
+    const id = parseInt(body.sectionId);
+    if (isNaN(id)) return { error: "Invalid section" };
+    const rows = await db
+      .select({ id: sections.id })
+      .from(sections)
+      .where(and(eq(sections.id, id), eq(sections.classId, classId), eq(sections.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Section not found in this class" };
+    sectionId = id;
+  }
+
+  if (body?.subjectId) {
+    const id = parseInt(body.subjectId);
+    if (isNaN(id)) return { error: "Invalid subject" };
+    const rows = await db
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(and(eq(subjects.id, id), eq(subjects.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Subject not found" };
+    subjectId = id;
+  }
+
+  if (body?.teacherId) {
+    const id = parseInt(body.teacherId);
+    if (isNaN(id)) return { error: "Invalid teacher" };
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.id, id), eq(users.schoolId, schoolId)))
+      .limit(1);
+    if (rows.length === 0) return { error: "Teacher not found" };
+    teacherId = id;
+  }
+
+  return {
+    data: {
+      title,
+      classId,
+      sectionId,
+      subjectId,
+      teacherId,
+      meetingUrl,
+      provider,
+      scheduledAt,
+      durationMinutes: duration,
+      description,
+    },
+  };
+}
