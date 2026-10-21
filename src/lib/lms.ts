@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { classes, sections, subjects, courses } from "@/db/schema";
+import { classes, sections, subjects, courses, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 
 export const LMS_MANAGER_ROLES = ["super_admin", "school_admin", "principal", "vice_principal", "teacher"];
