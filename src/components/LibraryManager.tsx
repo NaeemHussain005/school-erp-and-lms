@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Library,
   Plus,
@@ -131,7 +130,6 @@ export default function LibraryManager({
 
       {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3 mb-4">{error}</div>}
 
-      {/* Add / Edit form */}
       {canManage && showForm && (
         <div className="mb-4">
           <MaterialForm
@@ -144,7 +142,6 @@ export default function LibraryManager({
         </div>
       )}
 
-      {/* Filters */}
       <div className="card p-4 mb-4">
         <form className="flex flex-col md:flex-row gap-3" action="/lms/library" method="get">
           <div className="relative flex-1">
@@ -178,14 +175,15 @@ export default function LibraryManager({
         </form>
       </div>
 
-      {/* List */}
       {items.length === 0 ? (
         <div className="card p-10 text-center">
           <div className="w-14 h-14 rounded-full bg-blue-50 mx-auto flex items-center justify-center text-blue-600 mb-3">
             <Library className="w-7 h-7" />
           </div>
           <h3 className="font-bold text-slate-900">
-            {filters.q || filters.type || filters.classId ? "No materials match your filters" : "No materials yet"}
+            {filters.q || filters.type || filters.classId
+              ? "No materials match your filters"
+              : "No materials yet"}
           </h3>
           <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
             {canManage
@@ -224,3 +222,53 @@ export default function LibraryManager({
                         onClick={() => onDelete(it.id)}
                         disabled={deletingId === it.id}
                         className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        title="Delete"
+                      >
+                        {deletingId === it.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="font-bold text-slate-900 mt-3 line-clamp-2">{it.title}</div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  <span className="badge badge-slate">{TYPE_LABELS[it.type] || it.type}</span>
+                  {it.className && <span className="ml-1">· {it.className}</span>}
+                  {it.subjectName && <span className="ml-1">· {it.subjectName}</span>}
+                </div>
+                {it.description && (
+                  <p className="text-sm text-slate-500 mt-2 line-clamp-2">{it.description}</p>
+                )}
+
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                  {openUrl ? (
+                    <a
+                      href={openUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Open
+                    </a>
+                  ) : (
+                    <span className="text-sm text-slate-400">No link</span>
+                  )}
+                  {canManage &&
+                    (it.isPublic ? (
+                      <span className="badge badge-green">Public</span>
+                    ) : (
+                      <span className="badge badge-slate">Private</span>
+                    ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
