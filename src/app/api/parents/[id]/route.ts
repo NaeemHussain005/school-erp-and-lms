@@ -5,24 +5,34 @@ import { getSession } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
 import { canManageParents, cleanParentBody, hasAnyParentName } from "@/lib/parents";
 
+// auth + permission + valid id + parent belongs to this school
+async function guard(idParam: string) {
+  const session: any = await getSession();
+  if (!session?.schoolId) return { error: "Unauthorized", status: 401 as const };
+  if (!canManageParents(session)) {
+    return { error: "You do not have permission to manage parents", status: 403 as const };
+  }
+  const schoolId = session.schoolId;
+
+  const id = Number(idParam);
+  if (!Number.isInteger(id) || id <= 0) return { error: "Invalid parent id", status: 400 as const };
+
+  const existing = await db
+    .select({ id: parents.id })
+    .from(parents)
+    .where(and(eq(parents.id, id), eq(parents.schoolId, schoolId)))
+    .limit(1);
+  if (!existing.length) return { error: "Parent not found", status: 404 as const };
+
+  return { schoolId, id };
+}
+
+// PATCH /api/parents/:id  -> update parent
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session: any = await getSession();
-    if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!canManageParents(session)) {
-      return NextResponse.json({ error: "You do not have permission to edit parents" }, { status: 403 });
-    }
-
     const { id } = await params;
-    const parentId = parseInt(id);
-    if (isNaN(parentId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-
-    const rows = await db
-      .select({ id: parents.id })
-      .from(parents)
-      .where(and(eq(parents.id, parentId), eq(parents.schoolId, session.schoolId)))
-      .limit(1);
-    if (rows.length === 0) return NextResponse.json({ error: "Parent not found" }, { status: 404 });
+    const g = await guard(id);
+    if ("error" in g) return NextResponse.json({ error: g.error }, { status: g.status });
 
     const clean = cleanParentBody(await req.json());
     if (!hasAnyParentName(clean)) {
@@ -32,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await db
       .update(parents)
       .set(clean as any)
-      .where(and(eq(parents.id, parentId), eq(parents.schoolId, session.schoolId)));
+      .where(and(eq(parents.id, g.id), eq(parents.schoolId, g.schoolId)));
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
@@ -41,27 +51,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
+// DELETE /api/parents/:id  -> remove parent (student links cascade automatically)
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session: any = await getSession();
-    if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!canManageParents(session)) {
-      return NextResponse.json({ error: "You do not have permission to delete parents" }, { status: 403 });
-    }
-
     const { id } = await params;
-    const parentId = parseInt(id);
-    if (isNaN(parentId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    const g = await guard(id);
+    if ("error" in g) return NextResponse.json({ error: g.error }, { status: g.status });
 
-    const rows = await db
-      .select({ id: parents.id })
-      .from(parents)
-      .where(and(eq(parents.id, parentId), eq(parents.schoolId, session.schoolId)))
-      .limit(1);
-    if (rows.length === 0) return NextResponse.json({ error: "Parent not found" }, { status: 404 });
+    await db
+      .delete(parents)
+      .where(and(eq(parents.id, g.id), eq(parents.schoolId, g.schoolId)));
 
-    // links to students are removed automatically (onDelete cascade)
-    await db.delete(parents).where(and(eq(parents.id, parentId), eq(parents.schoolId, session.schoolId)));
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Delete parent error:", err);
