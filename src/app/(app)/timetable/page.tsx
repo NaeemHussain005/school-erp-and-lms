@@ -1,36 +1,65 @@
-import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
-import { Calendar, Plus } from "lucide-react";
+import { db } from "@/db";
+import { classes, sections, subjects, users } from "@/db/schema";
+import { getSession } from "@/lib/auth";
+import { and, eq, asc } from "drizzle-orm";
+import TimetableBoard from "@/components/TimetableBoard";
 
 export const dynamic = "force-dynamic";
 
-export default function TimetablePage() {
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const periods = [1, 2, 3, 4, 5, 6, 7, 8];
-  return (
-    <div className="animate-fade-in">
-      <PageHeader title="Timetable" description="Manage class and teacher timetables. Conflicts are prevented automatically." action="Create Slot" actionHref="#" actionIcon={<Plus className="w-4 h-4" />} />
-      <div className="card p-4 overflow-x-auto">
-        <table className="w-full text-sm min-w-[800px]">
-          <thead>
-            <tr className="bg-slate-50">
-              <th className="p-2 text-left font-semibold text-xs uppercase text-slate-500">Period</th>
-              {days.map((d) => <th key={d} className="p-2 text-left font-semibold text-xs uppercase text-slate-500">{d}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {periods.map((p) => (
-              <tr key={p} className="border-t border-slate-100">
-                <td className="p-2 font-semibold text-slate-700">Period {p}</td>
-                {days.map((d) => (
-                  <td key={d} className="p-2 text-slate-400 text-xs italic">—</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="text-xs text-slate-500 mt-3">No timetable slots yet. Add slots using the button above. The system prevents teacher/class double-bookings.</p>
+export default async function TimetablePage() {
+  const session: any = await getSession();
+  const schoolId = session?.schoolId;
+
+  if (!schoolId) {
+    return (
+      <div className="animate-fade-in">
+        <div className="card p-6 text-sm text-slate-500">
+          Please sign in to view the timetable.
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  const [classList, sectionList, subjectList, teacherRows] = await Promise.all([
+    db
+      .select({ id: classes.id, name: classes.name })
+      .from(classes)
+      .where(eq(classes.schoolId, schoolId))
+      .orderBy(asc(classes.numericLevel), asc(classes.name)),
+    db
+      .select({ id: sections.id, name: sections.name, classId: sections.classId })
+      .from(sections)
+      .where(eq(sections.schoolId, schoolId))
+      .orderBy(asc(sections.name)),
+    db
+      .select({ id: subjects.id, name: subjects.name })
+      .from(subjects)
+      .where(eq(subjects.schoolId, schoolId))
+      .orderBy(asc(subjects.name)),
+    db
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(
+        and(
+          eq(users.schoolId, schoolId),
+          eq(users.role, "teacher"),
+          eq(users.isActive, true),
+        ),
+      )
+      .orderBy(asc(users.firstName)),
+  ]);
+
+  const teachers = teacherRows.map((t) => ({
+    id: t.id,
+    name: [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || `Teacher #${t.id}`,
+  }));
+
+  return (
+    <TimetableBoard
+      classes={classList}
+      sections={sectionList}
+      subjects={subjectList}
+      teachers={teachers}
+    />
   );
 }
