@@ -173,15 +173,18 @@ export default async function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {feeByStatus.map((r) => (
-                  <tr key={r.status} className="border-b border-slate-100">
-                    <td className="p-2"><span className={FEE_BADGE[r.status] || "badge-slate"}>{r.status}</span></td>
-                    <td className="p-2 text-slate-700">{r.cnt}</td>
-                    <td className="p-2 text-slate-700">{fmtMoney(num(r.total), currency)}</td>
-                    <td className="p-2 text-slate-700">{fmtMoney(num(r.paid), currency)}</td>
-                    <td className="p-2 text-slate-700">{fmtMoney(num(r.balance), currency)}</td>
-                  </tr>
-                ))}
+                {feeByStatus.map((r) => {
+                  const st = r.status ?? "unpaid";
+                  return (
+                    <tr key={st} className="border-b border-slate-100">
+                      <td className="p-2"><span className={FEE_BADGE[st] || "badge-slate"}>{st}</span></td>
+                      <td className="p-2 text-slate-700">{r.cnt}</td>
+                      <td className="p-2 text-slate-700">{fmtMoney(num(r.total), currency)}</td>
+                      <td className="p-2 text-slate-700">{fmtMoney(num(r.paid), currency)}</td>
+                      <td className="p-2 text-slate-700">{fmtMoney(num(r.balance), currency)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
