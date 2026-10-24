@@ -1,49 +1,32 @@
-// Roles allowed to manage branches (top-level admins only — branches are structural)
-const BRANCH_MANAGE_ROLES = [
-  "super_admin",
-  "school_admin",
-  "principal",
-];
+export const BRANCH_MANAGER_ROLES = ["super_admin", "school_admin", "principal"];
 
-export function canManageBranches(session: any): boolean {
-  if (!session) return false;
-  if (session.isSuperAdmin) return true;
-  return BRANCH_MANAGE_ROLES.includes(session.role);
+export function canManageBranches(session: any) {
+  return !!session?.isSuperAdmin || BRANCH_MANAGER_ROLES.includes(session?.role);
 }
 
-function cleanEmail(v: any): string | null {
-  const s = String(v ?? "").trim().slice(0, 255);
-  if (!s) return null;
-  // light check — a stricter check isn't needed for an internal record
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : "invalid";
-}
+export function cleanBranch(
+  body: any
+):
+  | { error: string }
+  | {
+      data: {
+        name: string;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        isMain: boolean;
+      };
+    } {
+  const name = String(body?.name || "").trim();
+  if (!name) return { error: "Branch name is required" };
+  if (name.length > 255) return { error: "Branch name is too long" };
 
-export type CleanBranchData = {
-  name: string;
-  address: string | null;
-  phone: string | null;
-  email: string | null;
-  isMain: boolean;
-};
+  const address = String(body?.address || "").trim().slice(0, 2000) || null;
+  const phone = String(body?.phone || "").trim().slice(0, 50) || null;
+  const email = String(body?.email || "").trim().slice(0, 255) || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Enter a valid email address" };
+  }
 
-type CleanResult = { error: string } | { data: CleanBranchData };
-
-export function cleanBranch(body: any): CleanResult {
-  if (!body || typeof body !== "object") return { error: "Invalid request body" };
-
-  const name = String(body.name ?? "").trim().slice(0, 255);
-  if (!name) return { error: "Please enter a branch name" };
-
-  const addrRaw = String(body.address ?? "").trim();
-  const address = addrRaw.length ? addrRaw : null;
-
-  const phoneRaw = String(body.phone ?? "").trim().slice(0, 50);
-  const phone = phoneRaw.length ? phoneRaw : null;
-
-  const email = cleanEmail(body.email);
-  if (email === "invalid") return { error: "Email address is not valid" };
-
-  const isMain = body.isMain === true || body.isMain === "true";
-
-  return { data: { name, address, phone, email, isMain } };
+  return { data: { name, address, phone, email, isMain: body?.isMain === true } };
 }
