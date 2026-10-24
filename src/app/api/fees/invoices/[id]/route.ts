@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { feeInvoices } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
+import { logAudit } from "@/lib/audit";
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session: any = await getSession();
     if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,6 +27,16 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
     // invoice items are removed automatically (onDelete cascade)
     await db.delete(feeInvoices).where(eq(feeInvoices.id, invoiceId));
+
+    await logAudit(
+      session,
+      "invoice.delete",
+      "invoice",
+      invoiceId,
+      { invoiceNo: rows[0].invoiceNo, total: String(rows[0].totalAmount) },
+      req
+    );
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Delete invoice error:", err);
@@ -33,7 +44,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function PATCH(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session: any = await getSession();
     if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -62,6 +73,15 @@ export async function PATCH(_req: Request, { params }: { params: Promise<{ id: s
         updatedAt: new Date(),
       })
       .where(and(eq(feeInvoices.id, invoiceId), eq(feeInvoices.schoolId, session.schoolId)));
+
+    await logAudit(
+      session,
+      "invoice.cancel",
+      "invoice",
+      invoiceId,
+      { invoiceNo: rows[0].invoiceNo, total: String(rows[0].totalAmount), paid: String(rows[0].paidAmount) },
+      req
+    );
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
