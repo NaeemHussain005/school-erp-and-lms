@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { feeInvoices, feePayments } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   try {
@@ -69,6 +70,15 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       })
       .where(eq(feeInvoices.id, invoiceId));
+
+    await logAudit(
+      session,
+      "payment.record",
+      "payment",
+      payment.id,
+      { paymentNo, invoiceNo: inv.invoiceNo, amount: amount.toFixed(2), method, invoiceStatus: status },
+      req
+    );
 
     return NextResponse.json({ success: true, paymentNo, status, balance: newBalance });
   } catch (err: any) {
