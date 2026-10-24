@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users, teacherProfiles, staffProfiles } from "@/db/schema";
 import { getSession, hashPassword } from "@/lib/auth";
 import { generateEmployeeId } from "@/lib/auth-extra";
+import { logAudit } from "@/lib/audit";
 
 const MANAGER_ROLES = ["super_admin", "school_admin", "principal", "vice_principal", "hr_manager"];
 const BLOCKED_NEW_ROLES = ["super_admin", "parent", "student"];
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
     } else {
       await db.insert(staffProfiles).values(profileData);
     }
+
+    await logAudit(
+      session,
+      "staff.create",
+      "user",
+      userId,
+      { name: [body.firstName, body.lastName].filter(Boolean).join(" "), role: body.role },
+      req
+    );
 
     return NextResponse.json({ success: true, userId });
   } catch (err: any) {
