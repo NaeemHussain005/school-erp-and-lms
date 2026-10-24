@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users, teacherProfiles, staffProfiles } from "@/db/schema";
 import { getSession, hashPassword } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
+import { logAudit } from "@/lib/audit";
 
 const MANAGER_ROLES = ["super_admin", "school_admin", "principal", "vice_principal", "hr_manager"];
 const TEACHER_GROUP = ["teacher", "principal", "vice_principal"];
@@ -54,6 +55,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       updatedAt: new Date(),
     };
     if (typeof body.isActive === "boolean") userUpdate.isActive = body.isActive;
+    const passwordChanged = !!body.password;
     if (body.password) {
       if (String(body.password).length < 6) {
         return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
@@ -91,9 +93,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
     }
 
+    // audit trail (no passwords or hashes are ever logged)
+    const who = [firstName, userUpdate.lastName].filter(Boolean).join(" ");
+    await logAudit(session, "staff.update", "user", userId, { name: who, role: String(target.role) }, req);
+    if (typeof body.isActive === "boolean" && body.isActive !== target.isActive) {
+      await logAudit(session, body.isActive ? "staff.activate" : "staff.deactivate", "user", userId, { name: who }, req);
+    }
+    if (passwordChanged) {
+      await logAudit(session, "staff.password_reset", "user", userId, { name: who }, req);
+    }
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
-        console.error("Update staff error:", err);
+    console.error("Update staff error:", err);
     const code = err?.code || err?.cause?.code;
     if (code === "23505") {
       return NextResponse.json({ error: "This email or username is already used by another user" }, { status: 400 });
@@ -102,7 +114,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session: any = await getSession();
     if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -116,7 +128,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (userId === myId) return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
 
     const rows = await db
-      .select({ id: users.id })
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, role: users.role })
       .from(users)
       .where(and(eq(users.id, userId), eq(users.schoolId, session.schoolId)))
       .limit(1);
@@ -134,6 +146,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       }
       throw e;
     }
+
+    await logAudit(
+      session,
+      "staff.delete",
+      "user",
+      userId,
+      { name: [rows[0].firstName, rows[0].lastName].filter(Boolean).join(" "), role: String(rows[0].role) },
+      req
+    );
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
